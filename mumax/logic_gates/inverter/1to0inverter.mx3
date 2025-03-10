@@ -1,39 +1,74 @@
-setgridsize(512,512,1)
-setcellsize(1e-9,1e-9,1e-9)
+//THIS CODE IS FOR 1 -> 0
 
-deviceShape := rect(300e-9, 240e-9)
-hole1 := rect(125e-9,165e-9)
+//set device shape
+SetMesh(300, 240, 1, 1e-09, 1e-09, 1e-09, 0, 0, 0);
+setgeom(imageShape("not.png"));
 
+//micromagnetic model parameters
+alpha = 0.3;
+xi = 0.3;
+Aex = 15e-12;
+Ku1 = 8e5;
+Dind = 3.5e-3;
+Msat = 5.8000e+05;
+JJ:=-1.4000e+12;
 
+//initial magnetization definition
+m = uniform(0 , 0 , 1);
+anisU = vector(0, 0, 1);
 
+tableAdd(E_anis);
+tableAdd(E_total);
+tableAdd(E_exch);
+tableAdd(E_Zeeman);
+tableAdd(E_demag);
+tableAdd(E_therm);
+tableautosave(1e-12);
 
-//platinum-cobalt material properties
-hbar := 1.0545718e-34
-e := 1.6021766e-19
-AlphaH := 0.15
-d := 1e-9
-P := Constvector (0,-1,0)
-xi_SOT := -2.0
-J_SOT := abs (-2. e11)
+Jd1:=100/50;
+Jd2:=100/20;
+Jd3 := 100/12;
+jd4 :=100/50;
+jd5 := 100/45;
 
-// Skyrmion racetrack
-//setpbc(4,0,0)
+defregion(1 , imageshape("j1.png"));
+defregion(2 , imageshape("j2.png"));
+defregion(3 , imageshape("j3.png"));
 
-Msat = 580e3
-Aex = 15e-12
-Dind = 3.0e-3
-Ku1 = 0.8e6
-AnisU = vector(0,0,1) 
-alpha = 0.1
+j.setregion(1 , vector(0, JJ*Jd1 , 0));
+j.setregion(2 , vector(0, JJ*Jd2 , 0));
+j.setregion(3 , vector(0, JJ*Jd3 , 0));
 
-m = neelskyrmion(-1, 1).transl(-40e-9,0,0)
-minimize()
+m.setregion(1, neelskyrmion(1, -1).transl(0, -77e-9, 0));
+Pol =1;
+autosave(m , 1e-11);
+relax();
 
-Pol = 0.4
-xi = 0.2
-j = vector(-1e12,0,0) // A/m2
+run(0.5e-9);
 
-autosave(m,4e-10)
-tableAutosave(1e-11)
-tableAdd(ext_bubblepos)
-run(10e-9)
+JJ = -0.3e12;
+j.setregion(1 , vector(0, 0 , 0));
+j.setregion(2 , vector(0, 0 , 0));
+j.setregion(3 , vector(0, 0, 0));
+
+defregion(6 , rect(40e-9 , 40e-9).transl(-125e-9, 45e-9, 0));
+m.setregion(6, neelskyrmion(1, -1).transl(-125e-9, 45e-9, 0));
+defregion(4 , imageshape("j4.png"));
+j.setregion(4 , vector(JJ*Jd4,0 , 0));
+
+run(5e-9);
+j.setregion(4 , vector(0 , 0 , 0));
+
+JJ = -3.5e12;
+
+defregion(1 , imageshape("j1.png"));
+defregion(2 , imageshape("j2.png"));
+defregion(3 , imageshape("j3.png"));
+defregion(5 , imageshape("j5.png"));
+
+j.setregion(1 , vector(0, JJ*Jd1 , 0));
+j.setregion(2 , vector(0, JJ*Jd2 , 0));
+j.setregion(3 , vector(0, JJ*Jd3 , 0));
+j.setregion(5 , vector(0, JJ*Jd5 , 0));
+
+run(0.2e-9);
