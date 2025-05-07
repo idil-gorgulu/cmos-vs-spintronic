@@ -29,18 +29,28 @@ def analyze_circuit(file_path, primary_inputs, output_prefix):
         if input2 != '-' and pd.notna(input2):
             G.add_edge(input2, gate_id)
 
-    # determine and implement gate delays
+    # determine gate delays
     gate_delays = {"AND": 13.7, "OR": 19.7, "NOT": 5.23, "XOR": 45.23}
+
+    # calculate number of duplications for each node
+    fanout_count = {node: len(list(G.successors(node))) for node in G.nodes}
+
+    # calculate total delays for each node
     for _, row in df_clean.iterrows():
         gate_id = str(row["ID"]).strip()
         gate_type = str(row["Type"]).strip().upper()
-        delay = gate_delays.get(gate_type, 0)
+        base_delay = gate_delays.get(gate_type, 0)
+
+        # duplication penalty: (fanout - 1) * 0.35 ns
+        duplication_penalty = max(fanout_count.get(gate_id, 0) - 1, 0) * 0.35
+        effective_delay = base_delay + duplication_penalty
 
         for input_col in ["Input1", "Input2"]:
             input_node = str(row[input_col]).strip()
             if input_node != '-' and pd.notna(input_node):
                 if G.has_edge(input_node, gate_id):
-                    G[input_node][gate_id]['weight'] = delay
+                    G[input_node][gate_id]['weight'] = effective_delay
+
 
     # identify output gates
     output_gates = [n for n in G.nodes if str(n).startswith(output_prefix)]
@@ -64,25 +74,9 @@ def analyze_circuit(file_path, primary_inputs, output_prefix):
                 except nx.NetworkXNoPath:
                     continue
 
-    # add duplication penalties 
-    duplication_penalty = 0
-    duplication_details = {}
-    for node in longest_path:
-        fanout = len(list(G.successors(node)))
-        extra_edges = fanout - 1
-        if extra_edges > 0:
-            added_delay = extra_edges * 0.35
-            duplication_penalty += added_delay
-            duplication_details[node] = (extra_edges, added_delay)
-
-    total_latency = max_latency + duplication_penalty
-
     return {
         "critical_path": longest_path,
-        "base_latency_ns": max_latency,
-        "duplication_penalty_ns": duplication_penalty,
-        "total_latency_ns": total_latency,
-        "duplication_details": duplication_details
+        "total_latency_ns": max_latency,
     }
 
 # implementation for alu
