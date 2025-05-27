@@ -1,6 +1,6 @@
 ID,Input1,Type,Input2
 G1,S,NOT,-
-G2,A,AND,G1
-G3,B,AND,S
+G2,I0,AND,G1
+G3,I1,AND,S
 G4,G2,OR,G3
 Y,G4,BUF,-

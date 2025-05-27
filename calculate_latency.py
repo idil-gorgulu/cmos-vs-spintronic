@@ -1,25 +1,20 @@
 import pandas as pd
 import networkx as nx
+import sys
 
-def analyze_circuit(file_path, primary_inputs, output_prefix):
-    """
-    Calculates the weighted longest path with duplication penalties
-    for a given logic circuit described in a file. 
+def get_gate_delays():
+    return {
+        "AND": 13.7,
+        "OR": 19.7,
+        "NOT": 5.23,
+        "XOR": 45.23,
+        "XNOR": 45.23 + 5.23,
+        "BUF": 0.0  # Assume buffer has no delay
+    }
 
-    """
-    
-    # read data
-    if file_path.endswith('.csv'):
-        df = pd.read_csv(file_path)
-    else:
-        df = pd.read_excel(file_path)
-
-    # clean data
-    df_clean = df[["ID", "Input1", "Type", "Input2"]].copy()
-
-    # build graph
+def build_graph(df):
     G = nx.DiGraph()
-    for _, row in df_clean.iterrows():
+    for _, row in df.iterrows():
         gate_id = str(row["ID"]).strip()
         input1 = str(row["Input1"]).strip()
         input2 = str(row["Input2"]).strip()
@@ -28,20 +23,16 @@ def analyze_circuit(file_path, primary_inputs, output_prefix):
             G.add_edge(input1, gate_id)
         if input2 != '-' and pd.notna(input2):
             G.add_edge(input2, gate_id)
+    return G
 
-    # determine gate delays
-    gate_delays = {"AND": 13.7, "OR": 19.7, "NOT": 5.23, "XOR": 45.23}
-
-    # calculate number of duplications for each node
+def apply_delays(df, G):
+    gate_delays = get_gate_delays()
     fanout_count = {node: len(list(G.successors(node))) for node in G.nodes}
 
-    # calculate total delays for each node
-    for _, row in df_clean.iterrows():
+    for _, row in df.iterrows():
         gate_id = str(row["ID"]).strip()
         gate_type = str(row["Type"]).strip().upper()
         base_delay = gate_delays.get(gate_type, 0)
-
-        # duplication penalty: (fanout - 1) * 0.35 ns
         duplication_penalty = max(fanout_count.get(gate_id, 0) - 1, 0) * 0.35
         effective_delay = base_delay + duplication_penalty
 
@@ -51,18 +42,14 @@ def analyze_circuit(file_path, primary_inputs, output_prefix):
                 if G.has_edge(input_node, gate_id):
                     G[input_node][gate_id]['weight'] = effective_delay
 
-
-    # identify output gates
-    output_gates = [n for n in G.nodes if str(n).startswith(output_prefix)]
-
-    # solve the weighted longest path problem
+def longest_path_latency(G, primary_inputs, output_nodes):
     longest_path = []
-    max_latency = 0
+    max_latency = 0.0
 
     for src in primary_inputs:
         if src not in G:
             continue
-        for output in output_gates:
+        for output in output_nodes:
             if nx.has_path(G, src, output):
                 try:
                     subgraph = G.subgraph(nx.descendants(G, src) | {src})
@@ -73,18 +60,44 @@ def analyze_circuit(file_path, primary_inputs, output_prefix):
                         max_latency = latency
                 except nx.NetworkXNoPath:
                     continue
+    return longest_path, max_latency
+
+def analyze_circuit(file_path):
+    df = pd.read_csv(file_path)
+    df_clean = df[["ID", "Input1", "Type", "Input2"]].copy()
+    G = build_graph(df_clean)
+    apply_delays(df_clean, G)
+
+    all_nodes = list(G.nodes)
+
+    if "A0" in all_nodes and "B0" in all_nodes:
+        # Likely an adder
+        primary_inputs = sorted([n for n in all_nodes if n.startswith("A") or n.startswith("B") or n == "Cin"])
+        output_nodes = [n for n in all_nodes if n.startswith("SUM") or n.startswith("C")]
+    elif any(n.startswith("I") for n in all_nodes):
+        # Likely a multiplexer
+        primary_inputs = [n for n in all_nodes if n.startswith("I")]
+        output_nodes = [n for n in all_nodes if n == "Y"]
+    else:
+        # Default to ALU-style fixed naming
+        primary_inputs = ["A0", "B0", "A1", "B1", "A2", "B2", "A3", "B3"]
+        output_nodes = [n for n in all_nodes if str(n).startswith("13")]
+
+    path, latency = longest_path_latency(G, primary_inputs, output_nodes)
+
+    print(f"File: {file_path}")
+    print(f"Primary Inputs: {primary_inputs}")
+    print(f"Output Nodes: {output_nodes}")
+    print(f"Critical Path: {path}")
+    print(f"Total Latency: {latency:.2f} ns\n")
 
     return {
-        "critical_path": longest_path,
-        "total_latency_ns": max_latency,
+        "critical_path": path,
+        "total_latency_ns": latency
     }
 
-# implementation for alu
-file_path = "ALU_logic_gates.csv"  # Your original table
-primary_inputs = ["A0", "B0", "A1", "B1", "A2", "B2", "A3", "B3"]
-output_prefix = "13"
-
-result = analyze_circuit(file_path, primary_inputs, output_prefix)
-
-# show results
-print(result)
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python calculate_latency.py <path_to_csv>")
+    else:
+        analyze_circuit(sys.argv[1])
