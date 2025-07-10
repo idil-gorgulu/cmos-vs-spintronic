@@ -14,13 +14,13 @@ This repository contains the complete design, implementation, and evaluation of 
 
 As the semiconductor industry approaches the limits of Moore’s Law, alternative technologies like spintronics offer promising benefits in power and area efficiency. In this project, we implemented and analyzed:
 
-- ✅ Arithmetic Logic Unit (ALU)
-- ✅ Discrete-Time Fourier Transform (DTFT)
-- ✅ Multi-Layer Perceptron (MLP) for MNIST Classification
+- Arithmetic Logic Unit (ALU)
+- Discrete-Time Fourier Transform (DTFT)
+- Multi-Layer Perceptron (MLP) for MNIST Classification
 
 Each circuit was implemented using both conventional microelectronic flow (CMOS + Sky130 PDK via OpenLane) and spintronic flow (Skyrmion Logic App + MuMax3-based simulation).
 
-## 🔧 Design Flow
+## Design Flow
 
 ### CMOS (Microelectronic)
 - Python & C++ functional prototyping
@@ -35,7 +35,7 @@ Each circuit was implemented using both conventional microelectronic flow (CMOS 
 - Component-wise analysis using MuMax3 and Python
 - Power and delay modeling using gate benchmarks
 
-## 📊 Results Summary
+## Results Summary
 
 | Module | Domain       | Area (µm²) | Latency (ns) | Power         |
 |--------|--------------|------------|---------------|----------------|
@@ -46,7 +46,7 @@ Each circuit was implemented using both conventional microelectronic flow (CMOS 
 | MLP    | CMOS         | 1000000    | 2.6           | 9.42 mW        |
 |        | Spintronic   | 960164     | 2868.8        | 126.2 µW       |
 
-✅ **Spintronics significantly reduces power and area**, but comes at the cost of higher latency.
+**Spintronics significantly reduces power and area**, but comes at the cost of higher latency.
 
 ## Tools & Technologies
 
